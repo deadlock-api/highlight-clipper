@@ -93,7 +93,7 @@ async def _process_event(
     )
 
     title = video.title.replace("/", "-").replace(".", "-")
-    out_folder = f"clips/{video.user_name}/{title}/{match.start_time.isoformat()}/{event.name}"
+    out_folder = f"clips/{video.user_name}/{video.created_at.date().isoformat()}-{title}/{match.start_time.time().isoformat()}/{event.name}"
     os.makedirs(out_folder, exist_ok=True)
 
     out_file = f"{out_folder}/{event.filename()}.mp4"
