@@ -17,9 +17,6 @@ clips/
 # Built Visual Studio Code Extensions
 *.vsix
 
-### dotenv template
-.env
-
 ### Vim template
 # Swap
 [._]*.s[a-v][a-z]

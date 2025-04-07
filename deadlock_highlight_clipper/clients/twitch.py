@@ -1,16 +1,26 @@
-import os
+"""
+Twitch API client for the Deadlock Highlight Clipper.
+"""
+
 from functools import lru_cache
 
 from twitchAPI.object.api import Video
 from twitchAPI.twitch import Twitch
 from twitchAPI.type import VideoType
 
+from deadlock_highlight_clipper.config import Config
+
 
 @lru_cache
 async def connect_twitch() -> Twitch:
-    twitch = Twitch(os.environ["TWITCH_CLIENT_ID"])
+    if not Config.twitch_client_id or not Config.twitch_access_token:
+        raise ValueError(
+            "TWITCH_CLIENT_ID and TWITCH_ACCESS_TOKEN must be set in environment variables"
+        )
+
+    twitch = Twitch(Config.twitch_client_id)
     twitch.auto_refresh_auth = False
-    await twitch.set_user_authentication(os.environ["TWITCH_ACCESS_TOKEN"], scope=[])
+    await twitch.set_user_authentication(Config.twitch_access_token, scope=[])
     return twitch
 
 

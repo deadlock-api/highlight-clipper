@@ -1,3 +1,7 @@
+"""
+Deadlock API client for the Deadlock Highlight Clipper.
+"""
+
 from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
@@ -6,11 +10,15 @@ import pytz
 from httpx import AsyncClient
 from valveprotos_py.citadel_gcmessages_common_p2p import CMsgMatchMetaDataContents
 
-from deadlock_highlight_clipper.utils import RecursiveNamespace
+from deadlock_highlight_clipper.utils.data import RecursiveNamespace
 
 
 @dataclass
 class DeadlockMatchHistoryEntry:
+    """
+    A class representing a match history entry from the Deadlock API.
+    """
+
     account_id: int
     match_id: int
     hero_id: int
@@ -44,6 +52,16 @@ class DeadlockMatchHistoryEntry:
 async def get_matches(
     http_client: AsyncClient, steam_id: int
 ) -> list[DeadlockMatchHistoryEntry]:
+    """
+    Get match history for a player from the Deadlock API.
+
+    Args:
+        http_client: An HTTP client
+        steam_id: The Steam ID of the player
+
+    Returns:
+        A list of DeadlockMatchHistoryEntry objects
+    """
     data = await http_client.get(
         f"https://api.deadlock-api.com/v1/players/{steam_id}/match-history"
     )
@@ -55,6 +73,16 @@ async def get_matches(
 async def get_match(
     http_client: AsyncClient, match_id: int
 ) -> CMsgMatchMetaDataContents.MatchInfo:
+    """
+    Get match data from the Deadlock API.
+
+    Args:
+        http_client: An HTTP client
+        match_id: The match ID
+
+    Returns:
+        Match data as a CMsgMatchMetaDataContents.MatchInfo object
+    """
     data = await http_client.get(
         f"https://api.deadlock-api.com/v1/matches/{match_id}/metadata"
     )

@@ -1,3 +1,7 @@
+"""
+Video processing functions for the Deadlock Highlight Clipper.
+"""
+
 import asyncio
 import os
 import re
@@ -9,10 +13,12 @@ import numpy as np
 from twitchAPI.object.api import Video
 from valveprotos_py.citadel_gcmessages_common_pb2 import CMsgMatchMetaDataContents
 
-from deadlock_highlight_clipper import utils
-from deadlock_highlight_clipper.__main__ import LOGGER
-from deadlock_highlight_clipper.deadlock import DeadlockMatchHistoryEntry
-from deadlock_highlight_clipper.events import Event
+import logging
+from deadlock_highlight_clipper.clients.deadlock import DeadlockMatchHistoryEntry
+from deadlock_highlight_clipper.events.event import Event
+from deadlock_highlight_clipper.utils.time import format_timedelta
+
+LOGGER = logging.getLogger(__name__)
 
 
 async def extract_video_offset(
@@ -20,6 +26,21 @@ async def extract_video_offset(
     video: Video,
     event: Event,
 ) -> timedelta:
+    """
+    Extract the offset between match time and video time.
+
+    This function downloads a part of the video around an event, extracts the
+    in-game timestamp from the video frames, and calculates the offset between
+    the in-game time and the video time.
+
+    Args:
+        match: The match data
+        video: The video metadata
+        event: An event to use for calibration
+
+    Returns:
+        The offset between match time and video time
+    """
     filename = f"{video.id}_offset_calc.mp4"
     event_time_start = match_to_video_time(event.game_time_s_start, match, video)
     event_time_end = match_to_video_time(event.game_time_s_end, match, video)
@@ -68,16 +89,22 @@ async def extract_video_offset(
     )
 
     os.remove(filename)
-    return (
-        (event.game_time_s_start + event.game_time_s_end) / 2
-        - avg_timestamp
-        - timedelta(seconds=2)
-    )
+    return (event.game_time_s_start + event.game_time_s_end) / 2 - avg_timestamp
 
 
 def filter_outliers(
     timestamps: list[timedelta], threshold: float = 1.5
 ) -> list[timedelta]:
+    """
+    Filter outliers from a list of timestamps.
+
+    Args:
+        timestamps: A list of timestamps
+        threshold: The threshold for outlier detection
+
+    Returns:
+        A list of timestamps with outliers removed
+    """
     # filter unsorted timestamps
     filter_indices = set()
     for i in range(1, len(timestamps)):
@@ -108,6 +135,18 @@ def match_to_video_time(
     video: Video,
     video_offset: timedelta = timedelta(),
 ) -> timedelta:
+    """
+    Convert match time to video time.
+
+    Args:
+        match_time: The time in the match
+        match: The match data
+        video: The video metadata
+        video_offset: The offset between match time and video time
+
+    Returns:
+        The time in the video
+    """
     return match_time + match.start_time - video.created_at + video_offset
 
 
@@ -117,6 +156,18 @@ async def download_vod_part(
     start: timedelta,
     end: timedelta,
 ) -> bool:
+    """
+    Download a part of a Twitch VOD.
+
+    Args:
+        video: The video metadata
+        out_file: The output file path
+        start: The start time
+        end: The end time
+
+    Returns:
+        True if the download was successful, False otherwise
+    """
     command = f"yt-dlp --get-url -f b https://www.twitch.tv/videos/{video.id}"
     process = await asyncio.create_subprocess_shell(
         command,
@@ -126,7 +177,7 @@ async def download_vod_part(
     stdout, _ = await process.communicate()
     download_link = stdout.decode().strip()
     command = (
-        f"ffmpeg -y -ss {utils.format_timedelta(start)} -to {utils.format_timedelta(end)} "
+        f"ffmpeg -y -ss {format_timedelta(start)} -to {format_timedelta(end)} "
         f'-i "{download_link}" -c copy "{out_file}"'
     )
     process = await asyncio.create_subprocess_shell(
