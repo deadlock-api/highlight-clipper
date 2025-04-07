@@ -92,7 +92,8 @@ async def _process_event(
         f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Processing event {event.name} ({event.game_time_s_start}s-{event.game_time_s_end}s)"
     )
 
-    out_folder = f"clips/{video.user_name}/{video.title}/{match.start_time.isoformat()}/{event.name}"
+    title = video.title.replace("/", "-").replace(".", "-")
+    out_folder = f"clips/{video.user_name}/{title}/{match.start_time.isoformat()}/{event.name}"
     os.makedirs(out_folder, exist_ok=True)
 
     out_file = f"{out_folder}/{event.filename()}.mp4"
