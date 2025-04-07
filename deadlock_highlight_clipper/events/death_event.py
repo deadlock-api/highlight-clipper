@@ -32,4 +32,4 @@ class DeathEvent(Event):
         ]
 
     def filename(self) -> str:
-        return f"{self.game_time_s_start.total_seconds()}-K{self.killer.hero_id}-V{self.victim.account_id}-{self.victim.hero_id}"
+        return f"{int(self.game_time_s_start.total_seconds())}-K{self.killer.hero_id}-V{self.victim.account_id}-{self.victim.hero_id}"

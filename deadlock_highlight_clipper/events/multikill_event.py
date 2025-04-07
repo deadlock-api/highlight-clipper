@@ -65,4 +65,4 @@ class MultiKillEvent(Event):
         ]
 
     def filename(self) -> str:
-        return f"{self.game_time_s_start.total_seconds()}-K{self.killer.hero_id}-V{len(self.victims)}"
+        return f"{int(self.game_time_s_start.total_seconds())}-K{self.killer.hero_id}-V{len(self.victims)}"
