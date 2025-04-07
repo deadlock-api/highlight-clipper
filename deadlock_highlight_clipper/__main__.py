@@ -40,7 +40,7 @@ async def process_event(
         match.start_time
         + event.game_time_s_start
         - video.created_at
-        + timedelta(seconds=36)
+        + timedelta(seconds=36) # TODO: This is a hack to account for the video starting 36 seconds before the match start time, WHY?
     )
     video_event_end = utils.format_timedelta(
         match.start_time
