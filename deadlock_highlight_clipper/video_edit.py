@@ -119,7 +119,7 @@ async def extract_clip(
 ) -> bool:
     video_event_start = utils.format_timedelta(video_event_start)
     video_event_end = utils.format_timedelta(video_event_end)
-    command = f"twitch-dl download {video.id} --keep --start {video_event_start} --end {video_event_end} --output {out_file} --overwrite --quality source --format mp4"
+    command = f"twitch-dl download {video.id} --start {video_event_start} --end {video_event_end} --output {out_file} --overwrite --quality source --format mp4"
     process = await asyncio.create_subprocess_shell(
         command,
         stdout=asyncio.subprocess.PIPE,
