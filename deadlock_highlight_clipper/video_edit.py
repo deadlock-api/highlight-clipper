@@ -40,7 +40,9 @@ async def extract_video_offset(
         ret, frame = cap.read()
         if not ret:
             break
-        if int(cap.get(cv2.CAP_PROP_POS_FRAMES)) % 10 != 0:  # only read every 10th frame
+        if (
+            int(cap.get(cv2.CAP_PROP_POS_FRAMES)) % 10 != 0
+        ):  # only read every 10th frame
             continue
         frame = frame[crop_y1:crop_y2, crop_x1:crop_x2]
         text = reader.readtext(frame, detail=0)

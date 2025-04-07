@@ -67,7 +67,21 @@ async def process_match(steam_id: int, video: Video, match: DeadlockMatchHistory
     )
 
 
+semaphore = asyncio.Semaphore(5)
+
+
 async def process_event(
+    steam_id: int,
+    video: Video,
+    match: DeadlockMatchHistoryEntry,
+    event: Event,
+    video_offset: timedelta,
+):
+    async with semaphore:
+        await _process_event(steam_id, video, match, event, video_offset)
+
+
+async def _process_event(
     steam_id: int,
     video: Video,
     match: DeadlockMatchHistoryEntry,
