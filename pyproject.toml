@@ -1,0 +1,20 @@
+[project]
+name = "deadlock-highlight-clipper"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx[http2]>=0.28.1",
+    "pytz>=2025.2",
+    "twitch-dl>=2.11.0",
+    "twitchapi>=4.4.0",
+    "valveprotos-py",
+]
+
+[tool.uv.sources]
+valveprotos-py = { git = "https://github.com/deadlock-api/valveprotos-py" }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.4",
+]
