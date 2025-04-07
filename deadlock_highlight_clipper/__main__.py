@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import os
-import subprocess
 from argparse import ArgumentParser
 from datetime import timedelta
 
@@ -9,7 +8,7 @@ import coloredlogs
 import httpx
 from twitchAPI.object.api import Video
 
-from deadlock_highlight_clipper import twitch, deadlock, utils, events
+from deadlock_highlight_clipper import twitch, deadlock, utils, events, video_edit
 from deadlock_highlight_clipper.deadlock import DeadlockMatchHistoryEntry
 from deadlock_highlight_clipper.events.event import Event
 
@@ -17,82 +16,11 @@ logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("asyncio").setLevel(logging.INFO)
 logging.getLogger("httpcore").setLevel(logging.INFO)
 logging.getLogger("hpack").setLevel(logging.INFO)
-coloredlogs.install(level='DEBUG')
+coloredlogs.install(level="DEBUG")
 
 LOGGER = logging.getLogger(__name__)
 http_client = httpx.AsyncClient(http2=True)
-
-
-async def process_event(
-    steam_id: int, video: Video, match: DeadlockMatchHistoryEntry, event: Event
-):
-    LOGGER.info(
-        f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Processing event {event.name} ({event.game_time_s_start}s-{event.game_time_s_end}s)"
-    )
-
-    out_folder = f"events/{steam_id}/{video.id}/{match.match_id}"
-    os.makedirs(out_folder, exist_ok=True)
-
-    out_file = f"{out_folder}/{event.game_time_s_start.total_seconds()}s-{event.game_time_s_end.total_seconds()}s-{event.name}-{event.filename_postfix()}.mp4"
-    if os.path.exists(out_file):
-        LOGGER.info(
-            f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} already processed, skipping"
-        )
-        return
-
-    LOGGER.info(
-        f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} downloading video"
-    )
-
-    video_event_start = utils.format_timedelta(
-        match.start_time
-        + event.game_time_s_start
-        - video.created_at
-        + timedelta(seconds=36) # TODO: This is a hack to account for the video starting 36 seconds before the match start time, WHY?
-    )
-    video_event_end = utils.format_timedelta(
-        match.start_time
-        + event.game_time_s_end
-        - video.created_at
-        + timedelta(seconds=36)
-    )
-    command = f"twitch-dl download {video.id} --start {video_event_start} --end {video_event_end} --output {out_file} --overwrite --quality source --format mp4"
-
-    process = subprocess.Popen(
-        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-    )
-
-    while True:
-        output = process.stdout.readline()
-        if output == b"" and process.poll() is not None:
-            break
-        if output:
-            LOGGER.debug(output.strip().decode())
-
-    if process.returncode != 0:
-        LOGGER.error(
-            f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} failed to download video"
-        )
-    else:
-        LOGGER.info(
-            f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} downloaded video"
-        )
-
-
-async def process_match(steam_id: int, video: Video, match: DeadlockMatchHistoryEntry):
-    LOGGER.info(
-        f"[SteamID: {steam_id}] [Video: {video.title}] Processing match {match.match_id}"
-    )
-    match_data = await deadlock.get_match(http_client, match.match_id)
-    detected_events = events.detect_events(steam_id, match_data)
-    await asyncio.gather(*[process_event(steam_id, video, match, e) for e in detected_events])
-
-
-async def process_video(
-    steam_id: int, video: Video, matches: list[DeadlockMatchHistoryEntry]
-):
-    LOGGER.info(f"[SteamID: {steam_id}] Processing video {video}")
-    await asyncio.gather(*[process_match(steam_id, video, match) for match in matches])
+CLIP_PADDING = timedelta(seconds=10)
 
 
 async def main(channel_id: str, steam_id: int):
@@ -104,8 +32,89 @@ async def main(channel_id: str, steam_id: int):
         video_end = video.created_at + utils.parse_video_duration(video.duration)
         return video_start <= match.start_time <= video_end
 
-    videos = {v: [m for m in matches if is_match_in_video(v, m)] for v in videos[:1]}
-    await asyncio.gather(*[process_video(steam_id, v, ms) for v, ms in videos.items()])
+    videos = {v: [m for m in matches if is_match_in_video(v, m)] for v in videos[:5]}
+    for v, ms in videos.items():
+        await process_video(steam_id, v, ms)
+
+
+async def process_video(
+    steam_id: int, video: Video, matches: list[DeadlockMatchHistoryEntry]
+):
+    LOGGER.info(f"[SteamID: {steam_id}] Processing video {video}")
+    for match in matches:
+        await process_match(steam_id, video, match)
+
+
+async def process_match(steam_id: int, video: Video, match: DeadlockMatchHistoryEntry):
+    LOGGER.info(
+        f"[SteamID: {steam_id}] [Video: {video.title}] Processing match {match.match_id}"
+    )
+    match_data = await deadlock.get_match(http_client, match.match_id)
+    detected_events = events.detect_events(steam_id, match_data)
+    if not detected_events:
+        LOGGER.warning(
+            f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] No events detected"
+        )
+        return
+    video_offset = await video_edit.extract_video_offset(
+        match, video, detected_events[-1]
+    )
+    await asyncio.gather(
+        *[
+            process_event(steam_id, video, match, e, video_offset)
+            for e in detected_events
+        ]
+    )
+
+
+async def process_event(
+    steam_id: int,
+    video: Video,
+    match: DeadlockMatchHistoryEntry,
+    event: Event,
+    video_offset: timedelta,
+):
+    LOGGER.info(
+        f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Processing event {event.name} ({event.game_time_s_start}s-{event.game_time_s_end}s)"
+    )
+
+    out_folder = f"clips/{steam_id}/{video.id}/{match.match_id}/{event.name}"
+    os.makedirs(out_folder, exist_ok=True)
+
+    out_file = f"{out_folder}/{event.filename()}.mp4"
+    if os.path.exists(out_file):
+        LOGGER.info(
+            f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} already processed, skipping"
+        )
+        return
+
+    LOGGER.info(
+        f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} downloading video"
+    )
+
+    video_event_start = (
+        video_edit.match_to_video_time(
+            event.game_time_s_start, match, video, video_offset
+        )
+        - CLIP_PADDING
+    )
+    video_event_end = (
+        video_edit.match_to_video_time(
+            event.game_time_s_end, match, video, video_offset
+        )
+        + CLIP_PADDING
+    )
+    result = await video_edit.extract_clip(
+        video, video_event_start, video_event_end, out_file
+    )
+    if result:
+        LOGGER.info(
+            f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} downloaded video"
+        )
+    else:
+        LOGGER.error(
+            f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} failed to download video"
+        )
 
 
 if __name__ == "__main__":

@@ -5,7 +5,10 @@ description = "Add your description here"
 requires-python = ">=3.13"
 dependencies = [
     "coloredlogs>=15.0.1",
+    "easyocr>=1.7.2",
     "httpx[http2]>=0.28.1",
+    "numpy>=2.2.4",
+    "opencv-python>=4.11.0.86",
     "pytz>=2025.2",
     "twitch-dl>=2.11.0",
     "twitchapi>=4.4.0",

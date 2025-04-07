@@ -8,7 +8,7 @@ from deadlock_highlight_clipper.events.event import Event
 
 
 @dataclass
-class KillEvent(Event):
+class DeathEvent(Event):
     killer: CMsgMatchMetaDataContents.Players
     victim: CMsgMatchMetaDataContents.Players
     killer_pos: CMsgMatchMetaDataContents.Position
@@ -23,7 +23,7 @@ class KillEvent(Event):
         victim: CMsgMatchMetaDataContents.Players,
     ):
         return cls(
-            name="kill",
+            name="death",
             killer=killer,
             victim=victim,
             game_time_s_start=timedelta(seconds=death_detail.game_time_s),
@@ -38,17 +38,14 @@ class KillEvent(Event):
         cls,
         steam_id: int,
         match: CMsgMatchMetaDataContents.MatchInfo,
-    ) -> list["KillEvent"]:
-        player_slot = utils.get_player_slot(steam_id, match)
-        killer = next((p for p in match.players if p.account_id == steam_id), None)
-        if not killer:
-            raise ValueError(f"Player with Steam ID {steam_id} not found in match.")
+    ) -> list["DeathEvent"]:
         return [
-            KillEvent.from_death_detail(death, killer, victim)
+            cls.from_death_detail(
+                death, utils.get_player_at_slot(death.killer_player_slot, match), victim
+            )
             for victim in match.players
-            if victim.account_id != steam_id
+            if victim.account_id == steam_id
             for death in victim.death_details
-            if death.killer_player_slot == player_slot
         ]
 
     def filename(self):

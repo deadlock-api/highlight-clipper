@@ -48,3 +48,12 @@ def get_player_slot(steam_id: int, match: CMsgMatchMetaDataContents.MatchInfo) -
         if player.account_id == steam_id:
             return player.player_slot
     raise ValueError(f"Steam ID {steam_id} not found in match")
+
+
+def get_player_at_slot(
+    slot: int, match: CMsgMatchMetaDataContents.MatchInfo
+) -> CMsgMatchMetaDataContents.Players:
+    for player in match.players:
+        if player.player_slot == slot:
+            return player
+    raise ValueError(f"Player at slot {slot} not found in match")

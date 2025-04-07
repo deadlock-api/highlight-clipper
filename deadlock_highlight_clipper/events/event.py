@@ -21,5 +21,5 @@ class Event(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def filename_postfix(self) -> str:
+    def filename(self) -> str:
         raise NotImplementedError
