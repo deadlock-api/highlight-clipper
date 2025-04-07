@@ -32,7 +32,7 @@ async def main(channel_id: str, steam_id: int):
         video_end = video.created_at + utils.parse_video_duration(video.duration)
         return video_start <= match.start_time <= video_end
 
-    videos = {v: [m for m in matches if is_match_in_video(v, m)] for v in videos[:5]}
+    videos = {v: [m for m in matches if is_match_in_video(v, m)] for v in videos}
     for v, ms in videos.items():
         await process_video(steam_id, v, ms)
 
