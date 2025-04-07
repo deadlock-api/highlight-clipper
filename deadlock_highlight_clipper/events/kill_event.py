@@ -11,27 +11,6 @@ from deadlock_highlight_clipper.events.event import Event
 class KillEvent(Event):
     killer: CMsgMatchMetaDataContents.Players
     victim: CMsgMatchMetaDataContents.Players
-    killer_pos: CMsgMatchMetaDataContents.Position
-    death_pos: CMsgMatchMetaDataContents.Position
-    death_duration_s: int
-
-    @classmethod
-    def from_death_detail(
-        cls,
-        death_detail: CMsgMatchMetaDataContents.Deaths,
-        killer: CMsgMatchMetaDataContents.Players,
-        victim: CMsgMatchMetaDataContents.Players,
-    ):
-        return cls(
-            name="kill",
-            killer=killer,
-            victim=victim,
-            game_time_s_start=timedelta(seconds=death_detail.game_time_s),
-            game_time_s_end=timedelta(seconds=death_detail.game_time_s),
-            killer_pos=death_detail.killer_pos,
-            death_pos=death_detail.death_pos,
-            death_duration_s=death_detail.death_duration_s,
-        )
 
     @classmethod
     def detect(
@@ -44,12 +23,18 @@ class KillEvent(Event):
         if not killer:
             raise ValueError(f"Player with Steam ID {steam_id} not found in match.")
         return [
-            KillEvent.from_death_detail(death, killer, victim)
+            cls(
+                name="kill",
+                killer=killer,
+                victim=victim,
+                game_time_s_start=timedelta(seconds=death.game_time_s),
+                game_time_s_end=timedelta(seconds=death.game_time_s),
+            )
             for victim in match.players
             if victim.account_id != steam_id
             for death in victim.death_details
             if death.killer_player_slot == player_slot
         ]
 
-    def filename(self):
-        return f"{self.game_time_s_start.total_seconds()}-K{self.killer.account_id}-{self.killer.hero_id}_V{self.victim.account_id}-{self.victim.hero_id}"
+    def filename(self) -> str:
+        return f"{self.game_time_s_start.total_seconds()}-K{self.killer.hero_id}-V{self.victim.account_id}-{self.victim.hero_id}"
