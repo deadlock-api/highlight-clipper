@@ -118,8 +118,8 @@ async def _process_event(
         )
         + CLIP_PADDING
     )
-    result = await video_edit.extract_clip(
-        video, video_event_start, video_event_end, out_file
+    result = await video_edit.download_vod_part(
+        video, out_file, video_event_start, video_event_end
     )
     if result:
         LOGGER.info(

@@ -23,11 +23,11 @@ async def extract_video_offset(
     filename = f"{video.id}_offset_calc.mp4"
     event_time_start = match_to_video_time(event.game_time_s_start, match, video)
     event_time_end = match_to_video_time(event.game_time_s_end, match, video)
-    await extract_clip(
+    await download_vod_part(
         video,
+        filename,
         event_time_start - timedelta(seconds=5),
         event_time_end + timedelta(seconds=5),
-        filename,
     )
     cap = cv2.VideoCapture(filename)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -111,20 +111,29 @@ def match_to_video_time(
     return match_time + match.start_time - video.created_at + video_offset
 
 
-async def extract_clip(
+async def download_vod_part(
     video: Video,
-    video_event_start: timedelta,
-    video_event_end: timedelta,
     out_file: str,
+    start: timedelta,
+    end: timedelta,
 ) -> bool:
-    video_event_start = utils.format_timedelta(video_event_start)
-    video_event_end = utils.format_timedelta(video_event_end)
-    command = f"twitch-dl download {video.id} --start {video_event_start} --end {video_event_end} --output {out_file} --overwrite --quality source --format mp4"
+    command = f"yt-dlp --get-url -f b https://www.twitch.tv/videos/{video.id}"
     process = await asyncio.create_subprocess_shell(
         command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )
-    stdout, stderr = await process.communicate()
+    stdout, _ = await process.communicate()
+    download_link = stdout.decode().strip()
+    command = (
+        f"ffmpeg -y -ss {utils.format_timedelta(start)} -to {utils.format_timedelta(end)} "
+        f'-i "{download_link}" -c copy "{out_file}"'
+    )
+    process = await asyncio.create_subprocess_shell(
+        command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+    stdout, _ = await process.communicate()
     LOGGER.debug(stdout.decode())
     return process.returncode == 0

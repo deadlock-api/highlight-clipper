@@ -1,5 +1,7 @@
 clips/
 .idea/
+*.mp4
+*.png
 
 ### VisualStudioCode template
 .vscode/*

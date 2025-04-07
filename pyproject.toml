@@ -10,9 +10,9 @@ dependencies = [
     "numpy>=2.2.4",
     "opencv-python>=4.11.0.86",
     "pytz>=2025.2",
-    "twitch-dl>=2.11.0",
     "twitchapi>=4.4.0",
     "valveprotos-py",
+    "yt-dlp>=2025.3.31",
 ]
 
 [tool.uv.sources]
