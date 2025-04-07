@@ -1,24 +1,32 @@
 import asyncio
+import logging
 import os
 import subprocess
 from argparse import ArgumentParser
 from datetime import timedelta
 
+import coloredlogs
 import httpx
 from twitchAPI.object.api import Video
 
-from deadlock_highlight_clipper import twitch, deadlock, utils
+from deadlock_highlight_clipper import twitch, deadlock, utils, events
 from deadlock_highlight_clipper.deadlock import DeadlockMatchHistoryEntry
 from deadlock_highlight_clipper.events.event import Event
-from deadlock_highlight_clipper.events.event_detector import EventDetector
 
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("asyncio").setLevel(logging.INFO)
+logging.getLogger("httpcore").setLevel(logging.INFO)
+logging.getLogger("hpack").setLevel(logging.INFO)
+coloredlogs.install(level='DEBUG')
+
+LOGGER = logging.getLogger(__name__)
 http_client = httpx.AsyncClient(http2=True)
 
 
 async def process_event(
     steam_id: int, video: Video, match: DeadlockMatchHistoryEntry, event: Event
 ):
-    print(
+    LOGGER.info(
         f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Processing event {event.name} ({event.game_time_s_start}s-{event.game_time_s_end}s)"
     )
 
@@ -27,12 +35,12 @@ async def process_event(
 
     out_file = f"{out_folder}/{event.game_time_s_start.total_seconds()}s-{event.game_time_s_end.total_seconds()}s-{event.name}-{event.filename_postfix()}.mp4"
     if os.path.exists(out_file):
-        print(
+        LOGGER.info(
             f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} already processed, skipping"
         )
         return
 
-    print(
+    LOGGER.info(
         f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} downloading video"
     )
 
@@ -59,32 +67,31 @@ async def process_event(
         if output == b"" and process.poll() is not None:
             break
         if output:
-            print(output.strip().decode())
+            LOGGER.debug(output.strip().decode())
 
     if process.returncode != 0:
-        print(
+        LOGGER.error(
             f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} failed to download video"
         )
     else:
-        print(
+        LOGGER.info(
             f"[SteamID: {steam_id}] [Video: {video.title}] [Match: {match.match_id}] Event {event.name} downloaded video"
         )
 
 
 async def process_match(steam_id: int, video: Video, match: DeadlockMatchHistoryEntry):
-    print(
+    LOGGER.info(
         f"[SteamID: {steam_id}] [Video: {video.title}] Processing match {match.match_id}"
     )
     match_data = await deadlock.get_match(http_client, match.match_id)
-    event_detector = EventDetector(steam_id, match_data)
-    events = event_detector.detect_events()
-    await asyncio.gather(*[process_event(steam_id, video, match, e) for e in events])
+    detected_events = events.detect_events(steam_id, match_data)
+    await asyncio.gather(*[process_event(steam_id, video, match, e) for e in detected_events])
 
 
 async def process_video(
     steam_id: int, video: Video, matches: list[DeadlockMatchHistoryEntry]
 ):
-    print(f"[SteamID: {steam_id}] Processing video {video}")
+    LOGGER.info(f"[SteamID: {steam_id}] Processing video {video}")
     await asyncio.gather(*[process_match(steam_id, video, match) for match in matches])
 
 

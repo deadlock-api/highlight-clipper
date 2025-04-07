@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.13"
 dependencies = [
+    "coloredlogs>=15.0.1",
     "httpx[http2]>=0.28.1",
     "pytz>=2025.2",
     "twitch-dl>=2.11.0",
