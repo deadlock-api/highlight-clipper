@@ -28,6 +28,10 @@ class Config:
     multikill_threshold_seconds: int = int(
         os.environ.get("MULTIKILL_THRESHOLD_SECONDS", "10")
     )
+    team_fights_min_kills: int = int(os.environ.get("TEAM_FIGHTS_MIN_KILLS", "5"))
+    team_fights_threshold_seconds: int = int(
+        os.environ.get("TEAM_FIGHTS_THRESHOLD_SECONDS", "10")
+    )
 
     # Output
     output_directory: str = os.environ.get("OUTPUT_DIRECTORY", "clips")

@@ -10,6 +10,7 @@ from deadlock_highlight_clipper.events.death_event import DeathEvent
 from deadlock_highlight_clipper.events.event import Event
 from deadlock_highlight_clipper.events.kill_event import KillEvent
 from deadlock_highlight_clipper.events.multikill_event import MultiKillEvent
+from deadlock_highlight_clipper.events.team_fight_event import TeamFightEvent
 
 
 def detect_events(
@@ -31,4 +32,5 @@ def detect_events(
         # *KillEvent.detect(steam_id, match),
         # *DeathEvent.detect(steam_id, match),
         *MultiKillEvent.detect(steam_id, match),
+        *TeamFightEvent.detect(steam_id, match),
     ]
